@@ -21,7 +21,7 @@ title_separator          : " "
 subtitle                 : # site tagline that appears below site title in masthead
 name                     : "CRISP"
 description              : "An amazing website."
-url                      : "https://sn-crisp.github.io/Moon-Skypol/"
+url                      : # "https://sn-crisp.github.io/Moon-Skypol/"
 baseurl                  : "/minimal-mistakes"
 repository               : "SN-CRISP/Moon-Skypol"
 teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
