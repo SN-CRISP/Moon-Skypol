@@ -5,7 +5,8 @@
 # For technical reasons, this file is *NOT* reloaded automatically when you use
 # `jekyll serve`. If you change this file, please restart the server process.
 
-remote_theme             : "mmistakes/minimal-mistakes@4.24.0"
+theme             : minimal-mistakes-jekyll
+remote_theme             : #"mmistakes/minimal-mistakes@4.24.0"
 
 minimal_mistakes_skin    : "default" # "air", "aqua", "contrast", "dark", "dirt", "neon", "mint", "plum", "sunrise"
 
@@ -14,15 +15,15 @@ locale                   : "en-US"
 title                    : "Moon Polarization Sky Patterns"
 title_separator          : "-"
 subtitle                 : "CRISP project"
-name                     : &name "Michael Rose" # &name is a YAML anchor which can be *referenced later
-description              : &description "A flexible Jekyll theme for your blog or site with a minimalist aesthetic."
-url                      : https://mmistakes.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
-baseurl                  : "/minimal-mistakes" # the subpath of your site, e.g. "/blog"
-repository               : "mmistakes/minimal-mistakes"
-teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo                     : # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
-masthead_title           : # overrides the website title displayed in the masthead, use " " for no title
-# breadcrumbs            : false # true, false (default)
+name                     : &name "Beatriz Pereira" # &name is a YAML anchor which can be *referenced later
+description              : &description "This project intends to study the moonlight scattering in the Earth's atmosphere that causes polarization patterns in the sky, which can interfere in polarimetric astronomical observations."
+url                      : https://sn-crisp.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
+baseurl                  : "/Moon-Skypol" # the subpath of your site, e.g. "/blog"
+repository               : "SN-CRISP/Moon-Skypol"
+teaser                   : "/assets/images/500x300.png"
+logo                     : "/assets/images/88x88.png"
+masthead_title           : " " # overrides the website title displayed in the masthead, use " " for no title
+breadcrumbs              : true # true, false (default)
 words_per_minute         : 200
 comments:
   provider               : "false" # false (default), "disqus", "discourse", "facebook", "staticman_v2", "staticman", "utterances", "giscus", "custom"
@@ -52,16 +53,16 @@ reCaptcha:
 atom_feed:
   path                   : # blank (default) uses feed.xml
 
-search                   : true # true, false (default)
-search_full_content      : true # true, false (default)
+search                   : false # true, false (default)
+search_full_content      : false # true, false (default)
 search_provider          : algolia # lunr (default), algolia
 algolia:
-  application_id         : QB6HVGBSBA # YOUR_APPLICATION_ID
-  index_name             : minimal_mistakes # YOUR_INDEX_NAME
-  search_only_api_key    : 9d5014e5bbc77372547bce778dfa5663 # YOUR_SEARCH_ONLY_API_KEY
-  powered_by             : true # true (default), false
+  application_id         : #QB6HVGBSBA # YOUR_APPLICATION_ID
+  index_name             : #minimal_mistakes # YOUR_INDEX_NAME
+  search_only_api_key    : #9d5014e5bbc77372547bce778dfa5663 # YOUR_SEARCH_ONLY_API_KEY
+  powered_by             : #true # true (default), false
   files_to_exclude:
-    - _posts/2017-11-28-post-exclude-search.md
+    #- _posts/2017-11-28-post-exclude-search.md
 
 # SEO Related
 google_site_verification : "UQj93ERU9zgECodaaXgVpkjrFn9UrDMEzVamacSoQ8Y" # Replace this with your ID, or delete
@@ -99,8 +100,8 @@ analytics:
 author:
   name             : *name # *name is a YAML reference pointing to the &anchor earlier
   avatar           : "/assets/images/michael-rose.jpg"
-  bio              : "Just another *boring*, *tattooed*, *time traveling*, *designer*."
-  location         : "Buffalo, NY"
+  bio              : "Physics Engineer"
+  location         : "Portugal"
   links:
     - label: "Made Mistakes"
       icon: "fas fa-fw fa-link"
@@ -211,7 +212,7 @@ defaults:
       layout: single
       author_profile: true
       read_time: true
-      comments: true
+      comments: false
       share: true
       related: true
   # _pages
@@ -241,7 +242,7 @@ defaults:
       layout: single
       author_profile: true
       share: true
-      comments: true
+      comments: false
   # _pets
   - scope:
       path: ""
@@ -250,7 +251,7 @@ defaults:
       layout: single
       author_profile: true
       share: true
-      comment: true
+      comment: false
   # _portfolio
   - scope:
       path: ""
