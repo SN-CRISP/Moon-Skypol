@@ -11,6 +11,7 @@ import Stokes_func
 import Rayleigh_func
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import Mie_func
 
 
 def coord_radectoaltaz(RA, DEC, tem):
@@ -432,11 +433,11 @@ def fit_base(banda, conditc, method='leastsq', command='regular_multi'):
 
         barra.update(int(50/total))
 
-    C1field, C2field = np.asarray(C1field, dtype=np.float32), np.asarray(C2field, dtype=np.float32)
-    C1lua, C2lua = np.asarray(C1lua, dtype=np.float32), np.asarray(C2lua, dtype=np.float32)
-    POL_OBS, errPOL_OBS = np.asarray(POL_OBS, dtype=np.float32), np.asarray(errPOL_OBS, dtype=np.float32)
-    GAMMA, AOP = np.asarray(GAMMA, dtype=np.float32), np.asarray(AOP, dtype=np.float32)
-    SEEING, ALBEDO = np.asarray(SEEING, dtype=np.float32), np.asarray(ALBEDO, dtype=np.float32)
+    C1field, C2field = np.asarray(C1field, dtype=np.float64), np.asarray(C2field, dtype=np.float64)
+    C1lua, C2lua = np.asarray(C1lua, dtype=np.float64), np.asarray(C2lua, dtype=np.float64)
+    POL_OBS, errPOL_OBS = np.asarray(POL_OBS, dtype=np.float64), np.asarray(errPOL_OBS, dtype=np.float64)
+    GAMMA, AOP = np.asarray(GAMMA, dtype=np.float64), np.asarray(AOP, dtype=np.float64)
+    SEEING, ALBEDO = np.asarray(SEEING, dtype=np.float64), np.asarray(ALBEDO, dtype=np.float64)
 
     LABEL = 'method_' + str(method) + '_command_' + str(command)
 
@@ -2598,6 +2599,95 @@ def fit_base(banda, conditc, method='leastsq', command='regular_multi'):
 
         return result_reg, result.chisqr, result.bic, result_data
 
+    if command == 'regular_mie':
+        model = lmfit.Model(Mie_func.func_reg_DOP)
+
+        model.set_param_hint('A', min=0, max=2)
+        model.set_param_hint('x', min=0, max=1)
+        model.set_param_hint('m_part', min=0, max=4)
+        p = model.make_params(A=np.random.rand(), x=np.random.rand(), m_part=np.random.rand())
+        # result = model.fit(data=POL_OBS, params=p, allvars=[C1field, C2field, C1lua, C2lua], method='emcee')
+        result = model.fit(data=POL_OBS, params=p, allvars=[C1field, C2field, C1lua, C2lua], weights=errPOL_OBS,
+                           method='leastsq')
+
+        result_reg = [result.params['A'].value, result.params['x'].value, result.params['m_part'].value]
+        result_reg = np.asarray(result_reg)
+
+        model_fit_report = result.fit_report()
+        TXT.write('[independent variables]')
+        TXT.write(str(model.independent_vars))
+        TXT.write('\n \n')
+        TXT.write(model_fit_report)
+        TXT.write('\n \n')
+
+        lmfit.model.save_modelresult(result, model_name)
+
+        fig_x = plt.figure(figsize=(10, 5))
+        fig_x.add_axes((.1, .3, .8, .6))
+
+        x1 = GAMMA
+        y1 = Mie_func.func_reg_DOP([C1field, C2field, C1lua, C2lua], *result_reg)
+
+        rsd = result.eval_uncertainty()
+
+        diff = []
+        for i in range(0, len(POL_OBS)):
+            diff.append(POL_OBS[i] - y1[i])
+
+        w = np.argsort(x1)
+        new_x1, new_y1, er_diff, er_rsd, new_pol, new_pol_er = np.asarray(x1)[w], np.asarray(y1)[w], np.asarray(diff)[
+            w], np.asarray(rsd)[w], \
+                                                               np.asarray(POL_OBS)[w], np.asarray(errPOL_OBS)[w]
+        result_data = pd.DataFrame(
+            {'FIELD': field, 'BAND': COND1, 'CONDITION': COND2, 'GAMMA': new_x1, 'POL': new_pol,
+             'ERROR POL': new_pol_er, 'ALBEDO': ALBEDO,
+             'FIT IND': new_y1, 'FIT IND UNC': er_rsd, 'FIT IND DIFF': er_diff})
+
+        barra.update(10)
+
+        plt.plot(new_x1, new_y1, 'r-', markersize=2)  # GAMMA e resultados fit
+        plt.plot(new_x1, new_y1, 'ro', markersize=4)  # GAMMA e resultados fit
+
+        g1 = np.add(new_y1, er_rsd)
+        g2 = np.subtract(new_y1, er_rsd)
+        plt.fill_between(new_x1, g2, g1, where=(g2 < g1), interpolate=True, color='lavender')
+
+        plt.errorbar(GAMMA, POL_OBS, yerr=errPOL_OBS, ms=2.0, fmt='o', color='black')  # GAMMA e observações
+
+        plt.ylim(0, 0.8)
+        plt.ylabel('Polarization')
+        label_text = 'fit parameters:    $A$ = ' + str(
+            round(result.params['A'].value, 3)) + '$\pm$' + str(
+            round(result.params['A'].stderr, 3)) + ' ' + str(
+            round(result.params['x'].value, 3)) + '$\pm$' + str(
+            round(result.params['x'].stderr, 3)) + ' ' + str(
+            round(result.params['m_part'].value, 3)) + '$\pm$' + str(
+            round(result.params['m_part'].stderr, 3)) + '\n' + 'chi-square: ' + str(
+            round(result.chisqr, 10)) + ',  reduced chi-square: ' + str(
+            round(result.redchi, 10)) + '\n' + 'Bayesian Information Criterion: ' + str(round(result.bic, 2))
+        plt.annotate(label_text, xy=(0.1, 0.2), xycoords='axes fraction', xytext=(0.1, 0.9),
+                     textcoords='axes fraction',
+                     horizontalalignment='left', verticalalignment='center', bbox=dict(boxstyle="round", fc="w"))
+        plt.grid(True)
+        barra.update(10)
+
+        fig_x.add_axes((.1, .1, .8, .2))
+
+        plt.errorbar(new_x1, er_diff, yerr=new_pol_er)
+        plt.plot(new_x1, er_rsd, 'g-', markersize=2)
+        barra.update(10)
+
+        plt.xlabel('Scattering Angle (degrees)')
+        plt.ylabel('Residual data')
+        plt.grid(True)
+        plt.savefig('IMAGE_individual_' + str(banda) + '_' + LABEL + '.png')
+        barra.update(10)
+        plt.pause(0.3)
+        plt.close()
+        barra.close()
+
+        return result_reg, result.chisqr, result.bic, result_data
+
     else:
         print('Wrong command input.')
         pass
@@ -2946,7 +3036,7 @@ def data_storage():
     CONDITION = DATA['CONDITION'].to_numpy()
 
     fit_observations_resume = pd.DataFrame(
-        {'FIELD': field, 'RA': RA, 'DEC': DEC, 'OB TIME MED': MED, 'I': Ival, 'Q': Qval, 'error Q': errQval, 'U': Uval,
+        {'FIELD': field, 'RA': RA, 'DEC': DEC, 'OBS TIME MED': MED, 'I': Ival, 'Q': Qval, 'error Q': errQval, 'U': Uval,
          'U error': errUval, 'SEEING': seen, 'BANDA': BANDA, 'CONDITION': CONDITION})
 
     total = len(RA)
@@ -3032,18 +3122,18 @@ def data_storage():
     ALBEDO, SEEING = np.asarray(ALBEDO, dtype=np.float32), np.asarray(SEEING, dtype=np.float32)
     GAMMA_SOL, WAV = np.asarray(GAMMA_SOL, dtype=np.float32), np.asarray(WAV, dtype=np.float32)
 
-    fit_observations_resume.insert(10, 'THETA MOON', C1lua)
-    fit_observations_resume.insert(11, 'PHI MOON', C2lua)
-    fit_observations_resume.insert(12, 'ALBEDO', ALBEDO)
-    fit_observations_resume.insert(13, 'WAVELENGTH', WAV)
-    fit_observations_resume.insert(14, 'THETA FIELD', C1field)
-    fit_observations_resume.insert(15, 'PHI FIELD', C2field)
-    fit_observations_resume.insert(16, 'GAMMA', GAMMA)
-    fit_observations_resume.insert(17, 'AOP', AOP)
-    fit_observations_resume.insert(18, 'AOP error', errAOP)
-    fit_observations_resume.insert(19, 'POL OBS', POL_OBS)
-    fit_observations_resume.insert(20, 'POL OBS error', errPOL_OBS)
-    fit_observations_resume.insert(21, 'THETA SUN', C1sol)
-    fit_observations_resume.insert(22, 'PHI SUN', C2sol)
+    fit_observations_resume.insert(12, 'THETA MOON', C1lua)
+    fit_observations_resume.insert(13, 'PHI MOON', C2lua)
+    fit_observations_resume.insert(14, 'ALBEDO', ALBEDO)
+    fit_observations_resume.insert(15, 'WAVELENGTH', WAV)
+    fit_observations_resume.insert(16, 'THETA FIELD', C1field)
+    fit_observations_resume.insert(17, 'PHI FIELD', C2field)
+    fit_observations_resume.insert(18, 'GAMMA', GAMMA)
+    fit_observations_resume.insert(19, 'AOP', AOP)
+    fit_observations_resume.insert(20, 'AOP error', errAOP)
+    fit_observations_resume.insert(21, 'POL OBS', POL_OBS)
+    fit_observations_resume.insert(22, 'POL OBS error', errPOL_OBS)
+    fit_observations_resume.insert(23, 'THETA SUN', C1sol)
+    fit_observations_resume.insert(24, 'PHI SUN', C2sol)
 
     fit_observations_resume.to_csv("data_output.csv")

@@ -70,7 +70,6 @@ def func_reg_DOP(allvars, par):
 
 def func_simple_reg_DOP(gamma, par):
     DOP = par * ((np.sin(gamma * np.pi / 180)) ** 2) / (1 + np.cos(gamma * np.pi / 180) ** 2)
-
     return DOP
 
 

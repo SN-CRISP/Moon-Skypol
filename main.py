@@ -2,6 +2,7 @@ import multiple_func as multi
 import Stokes_func as St
 import Rayleigh_func as Ray
 import field_functions
+import Mie_func as Mie
 
 # field_functions.data_storage()
 
@@ -76,3 +77,5 @@ if model == 'stokes':
     parameters, df = St.FIT(band=band_obs, condition=condition_obs, command=type_fit)
 if model == 'rayleigh':
     parameters, df = Ray.FIT(band=band_obs, condition=condition_obs, command=type_fit)
+if model == 'mie':
+    parameters, df = Mie.FIT(band=band_obs, condition=condition_obs, command=type_fit)

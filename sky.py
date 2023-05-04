@@ -1,5 +1,18 @@
+"""
+    Functions dealing with:
+     - coordinates transformations;
+     - angular distance;
+     - angles of rotation calculations.
+
+    Classes of objects on celestial sky:
+     - Moon;
+     - Sun;
+     - Target of observation.
+"""
+
 import numpy as np
 import astropy.coordinates as coord
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
 import astropy.units as u
 import pandas as pd
@@ -8,8 +21,78 @@ import ephem
 import matplotlib.pyplot as plt
 
 
+def func_gamma(theta_obs, phi_obs, theta_lua, phi_lua):
+    gamma = np.arccos(
+        np.sin(theta_lua) * np.sin(theta_obs) * np.cos(phi_obs - phi_lua) + np.cos(theta_lua) * np.cos(theta_obs))
+
+    return gamma
+
+
+def rotation_angles(theta_obs, phi_obs, theta_lua, phi_lua):
+    global alpha_out, alpha_in
+
+    gamma = func_gamma(theta_obs, phi_obs, theta_lua, phi_lua)
+
+    if (0 <= (phi_obs - phi_lua) <= np.pi and 0 <= phi_lua <= np.pi) or (
+            0 <= (phi_obs - phi_lua) <= np.pi or 0 <= phi_obs <= (phi_lua + np.pi) % (2 * np.pi)):
+        alpha_in = np.arccos(
+            (-np.cos(theta_obs) + np.cos(theta_lua) * np.cos(gamma)) / (-np.sin(gamma) * np.sin(theta_lua)))
+        alpha_out = np.arccos(
+            (-np.cos(theta_lua) + np.cos(theta_obs) * np.cos(gamma)) / (-np.sin(gamma) * np.sin(theta_obs)))
+    else:
+        alpha_in = np.arccos(
+            (-np.cos(theta_obs) + np.cos(theta_lua) * np.cos(gamma)) / (np.sin(gamma) * np.sin(theta_lua)))
+        alpha_out = np.arccos(
+            (-np.cos(theta_lua) + np.cos(theta_obs) * np.cos(gamma)) / (np.sin(gamma) * np.sin(theta_obs)))
+
+    if np.sin(theta_obs) == 0:
+        alpha_in = np.arccos(-np.cos(theta_lua) * np.cos(phi_obs - phi_lua))
+        alpha_out = np.arccos(np.cos(theta_lua))
+    if np.sin(theta_lua) == 0:
+        alpha_in = np.arccos(np.cos(theta_obs))
+        alpha_out = np.arccos(-np.cos(theta_obs) * np.cos(phi_obs - phi_lua))
+
+    if gamma == 0 or gamma == np.pi:
+        alpha_in = 0
+        alpha_out = 0
+
+    if theta_obs < 0:
+        if 0 <= phi_lua <= np.pi:
+            if 0 <= (phi_obs - phi_lua) <= np.pi:
+                alpha_out = phi_obs - phi_lua
+            else:
+                alpha_out = phi_lua - phi_obs
+        else:
+            if (0 <= (phi_obs - phi_lua) <= np.pi) or (0 <= phi_obs <= (phi_lua + np.pi) % (2 * np.pi)):
+                alpha_out = phi_obs - phi_lua
+            else:
+                alpha_out = phi_lua - phi_obs
+    else:
+        pass
+
+    alpha = [alpha_in, alpha_out]
+
+    return alpha
+
+
+def coord_radectoaltaz(RA, DEC, tem):
+    observing_location = coord.EarthLocation(lon=-70.404167 * u.deg, lat=-24.627222 * u.deg, height=2635 * u.m)
+    observing_time = Time(tem)
+    cond = coord.AltAz(location=observing_location, obstime=observing_time)
+
+    CO = SkyCoord(ra=RA * u.deg, dec=DEC * u.deg, frame='icrs')
+    CO.transform_to(cond)
+    alt = CO.transform_to(cond).alt * u.deg
+    az = CO.transform_to(cond).az * u.deg
+
+    # results have the shape: ALT, AZ
+    results = [alt, az]
+
+    return results
+
+
 class Sun:
-    def __init__(self, time):
+    def __init__(self, time=None):
         self.theta = None
         self.phi = None
         self.az = None
@@ -21,6 +104,18 @@ class Sun:
         self.meridian_y = None
 
     def set_parameters(self, tem=None):
+        # compute all Sun coordinates from a given time
+        global tempo
+        if tem is None and self.time is not None:
+            # print('Calculating Moon parameter...')
+            tempo = self.time
+        if tem is None and self.time is None:
+            print('Time input missing! Aceptable input may be for example: 2021-1-19 18:00:00.000')
+            exit()
+        if tem is not None:
+            tempo = Time(tem, scale='utc')
+            self.time = tempo
+
         tem = Time(self.time, scale='utc')
         loc = coord.EarthLocation(lon=-70.404167 * u.deg, lat=-24.627222 * u.deg, height=2635 * u.m)
 
@@ -61,7 +156,7 @@ class Sun:
 
 
 class Moon:
-    def __init__(self, time):
+    def __init__(self, time=None):
         self.theta = None
         self.phi = None
         self.az = None
@@ -75,7 +170,8 @@ class Moon:
         self.meridian_x = None
         self.meridian_y = None
 
-    def get_parameters(self, tem=None):
+    def set_parameters(self, tem=None):
+        # compute all Moon coordinates from a given time
         global tempo
         if tem is None and self.time is not None:
             # print('Calculating Moon parameter...')
@@ -136,9 +232,11 @@ class Moon:
         return results
 
     def get_albedo(self, ind):
+        # albedo approximation from close values
+
         df = pd.read_csv('par_albedo.csv', sep=';')
 
-        par_moon = self.get_parameters()
+        par_moon = self.set_parameters()
 
         df.isnull().sum()
         df.dropna(axis=1)
@@ -206,7 +304,8 @@ class Moon:
         return result
 
     def plot_and_retrive_albedo(self, wave):
-        # print('Plotting...')
+        # plot albedo versus wavelength and get intersection from a given wavelength
+
         wave_conj = []
         func_albedo = []
 
@@ -230,7 +329,9 @@ class Moon:
         df = pd.DataFrame({'Wavelength (nm)': x, 'Lunar Albedo': y})
         sns.lmplot(x='Wavelength (nm)', y='Lunar Albedo', data=df, order=2)
         albedo = np.interp(wave, xp, p(xp))
+
         self.albedo = albedo
+
         plt.plot(wave, albedo, 'ro')
         plt.text(wave+0.02, albedo+0.02, str([wave, round(albedo, 3)]))
         plt.pause(0.1)
@@ -239,6 +340,8 @@ class Moon:
         return albedo
 
     def plot_tempo(self):
+        # plot lunar albedo and phase in function of time for three different wavelengths
+
         df = pd.read_csv('par_albedo.csv', sep=';')
 
         df.isnull().sum()
@@ -356,6 +459,8 @@ class Moon:
         plt.show()
 
     def true_sun(self):
+        # Sun position at the same time
+
         tem = Time(self.time, scale='utc')
         loc = coord.EarthLocation(lon=-70.404167 * u.deg, lat=-24.627222 * u.deg, height=2635 * u.m)
 
@@ -375,3 +480,75 @@ class Moon:
         results = [alt_sol, az_sol]
 
         return results, SUN
+
+
+class Field:
+    def __init__(self, name=None, band=None, conditions=None, ra=None, dec=None):
+        self.wave = None
+        self.alt = None
+        self.az = None
+        self.theta = None
+        self.phi = None
+        self.gamma = None
+        self.time = None
+        self.moon = None
+        self.ra = ra
+        self.dec = dec
+        self.name = name
+        self.band = band
+        self.conditions = conditions
+
+    def define_observation(self, band, conditions, name):
+        self.name = name
+        self.band = band
+        self.conditions = conditions
+
+    def define_field(self, ra, dec):
+        self.ra = ra
+        self.dec = dec
+
+    def get_observation(self, tem):
+        self.time = tem
+        ra = self.ra
+        dec = self.dec
+
+        coords_field = coord_radectoaltaz(ra, dec, tem)
+        self.alt = coords_field[0].value
+        self.az = coords_field[1].value
+
+        theta_obs = np.pi / 2 - coords_field[0].value * np.pi / 180.0
+        phi_obs = coords_field[1].value * np.pi / 180.0
+
+        self.theta = theta_obs
+        self.phi = phi_obs
+
+        LUA = Moon(tem)
+        self.moon = LUA
+        lua_coords = LUA.set_parameters(tem)
+
+        theta_lua = np.pi / 2 - lua_coords[0] * np.pi / 180.0
+        phi_lua = lua_coords[1] * np.pi / 180.0
+
+        self.gamma = np.arccos(
+            np.sin(theta_lua) * np.sin(theta_obs) * np.cos(phi_obs - phi_lua) + np.cos(theta_lua) * np.cos(theta_obs))
+
+        if self.band == 'B':
+            self.wave = 437
+        if self.band == 'V':
+            self.wave = 555
+        if self.band == 'R':
+            self.wave = 655
+        if self.band == 'I':
+            self.wave = 768
+
+    def func_gamma(self, theta_source, phi_source, units='radians'):
+        gamma = np.arccos(
+            np.sin(theta_source) * np.sin(self.theta) * np.cos(self.phi - phi_source) + np.cos(theta_source) * np.cos(
+                self.theta))
+
+        if units == 'radians':
+            gamma = gamma * 1
+        if units == 'degrees':
+            gamma = gamma * 180 / np.pi
+
+        return gamma
