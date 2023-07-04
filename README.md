@@ -8,5 +8,4 @@ This CRISP project focuses in the Moonlight scattering processes in the atmosphe
     <script data-plotly="beatrizmspereira002:4" src="https://plotly.com/embed.js" async></script>
 </div>
 
-https://chart-studio.plotly.com/~beatrizmspereira002/4.embed
 
